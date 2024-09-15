@@ -1,0 +1,7 @@
+[requires]
+boost/1.86.0
+libarchive/3.7.4
+
+[generators]
+CMakeDeps
+CMakeToolchain
