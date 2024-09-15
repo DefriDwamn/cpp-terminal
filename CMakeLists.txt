@@ -7,6 +7,8 @@ find_package(LibArchive REQUIRED)
 find_package(Boost REQUIRED program_options)
 #find_package(GTest REQUIRED)
 
+include_directories(include)
+
 add_executable(${PROJECT_NAME} main.cpp)
 
 target_link_libraries(${PROJECT_NAME} LibArchive::LibArchive boost::boost)
