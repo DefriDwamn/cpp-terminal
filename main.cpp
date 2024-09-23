@@ -1,3 +1,4 @@
+#include "core/shell.hpp"
 #include <boost/program_options.hpp>
 #include <fstream>
 #include <iostream>
@@ -24,12 +25,12 @@ int main(int argc, char *argv[]) {
     po::notify(vm);
 
     if (vm.count("create")) {
-      // Shell shell;
-      // shell.run();
+      Shell shell;
+      shell.run();
     } else if (vm.count("fs")) {
       std::string fsPath = getFilesystemPath(vm);
-      // Shell shell(fsPath);
-      // shell.run();
+      Shell shell(fsPath);
+      shell.run();
     } else {
       throw std::runtime_error(
           "Either --create or --fs option must be specified.");
