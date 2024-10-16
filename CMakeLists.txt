@@ -5,7 +5,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(LibArchive REQUIRED)
 find_package(Boost REQUIRED program_options)
-#find_package(GTest REQUIRED)
 
 include_directories("include")
 
