@@ -10,6 +10,8 @@ VirtualFilesystem::VirtualFilesystem(const std::string &path)
     loadArchive();
     createFile("/", 0, AE_IFDIR);
     createFile("/hello", 0, AE_IFREG);
+    createFile("/dir", 0, AE_IFDIR);
+    createFile("/dir/file", 0, AE_IFREG);
   }
 }
 
@@ -18,30 +20,34 @@ std::string VirtualFilesystem::getCurrentDirectory() {
 }
 
 void VirtualFilesystem::loadArchive() {
-  struct archive *archive;
-  struct archive_entry *entry;
-  int result;
+    struct archive *archive;
+    struct archive_entry *entry;
+    int result;
 
-  archive = archive_read_new();
-  archive_read_support_format_tar(archive);
-  archive_read_support_filter_all(archive);
+    archive = archive_read_new();
+    archive_read_support_format_tar(archive);
+    archive_read_support_filter_all(archive);
 
-  result = archive_read_open_filename(archive, archivePath.c_str(), 10240);
-  if (result != ARCHIVE_OK)
-    throw std::runtime_error("Failed to open archive!");
+    result = archive_read_open_filename(archive, archivePath.c_str(), 10240);
+    if (result != ARCHIVE_OK)
+        throw std::runtime_error("Failed to open archive!");
 
-  while (archive_read_next_header(archive, &entry) == ARCHIVE_OK) {
-    const char *path = archive_entry_pathname(entry);
-    unsigned short fileMode = archive_entry_filetype(entry);
-    size_t fileSize = archive_entry_size(entry);
-    fileStorage->add(path, fileSize, fileMode);
-    archive_read_data_skip(archive);
-  }
+    while (archive_read_next_header(archive, &entry) == ARCHIVE_OK) {
+        const char *path = archive_entry_pathname(entry);
+        unsigned short fileMode = archive_entry_filetype(entry);
+        size_t fileSize = archive_entry_size(entry);
 
-  result = archive_read_free(archive);
-  if (result != ARCHIVE_OK) {
-    throw std::runtime_error("Failed to close archive: " + archivePath);
-  }
+        std::string relativePath = path[0] == '/' ? std::string(path).substr(1) : std::string(path);
+
+        fileStorage->add(relativePath, fileSize, fileMode);
+
+        archive_read_data_skip(archive);
+    }
+
+    result = archive_read_free(archive);
+    if (result != ARCHIVE_OK) {
+        throw std::runtime_error("Failed to close archive: " + archivePath);
+    }
 }
 
 void VirtualFilesystem::createDefaultArchive(
@@ -65,8 +71,7 @@ void VirtualFilesystem::createDefaultArchive(
   archivePath = defaultArchiveName;
 }
 
-std::vector<std::string>
-VirtualFilesystem::listDirectory(const std::string &path) {
+std::vector<std::string> VirtualFilesystem::listDirectory(const std::string &path) {
   std::vector<std::string> result;
 
   if (!fileStorage->exists(path)) {
@@ -80,9 +85,18 @@ VirtualFilesystem::listDirectory(const std::string &path) {
     return result;
   }
 
+  std::string directoryPath = path;
+  if (directoryPath.back() != '/') {
+    directoryPath += "/";
+  }
+
   for (const auto &file : fileStorage->files) {
-    if (file.second.path.find(path) == 0 && file.second.path != path) {
-      result.push_back(file.second.path.substr(path.size()));
+    const std::string &filePath = file.second.path;
+    if (filePath.find(directoryPath) == 0) {
+      std::string relativePath = filePath.substr(directoryPath.size());
+      if (relativePath.find('/') == std::string::npos) {
+        result.push_back(relativePath);
+      }
     }
   }
 
@@ -90,19 +104,32 @@ VirtualFilesystem::listDirectory(const std::string &path) {
 }
 
 void VirtualFilesystem::changeDirectory(const std::string &path) {
-  if (!fileStorage->exists(path)) {
-    std::cerr << "Directory does not exist: " << path << std::endl;
-    return;
-  }
+    std::string targetPath = path;
 
-  const Metadata &metadata = fileStorage->getMetadata(path);
-  if (metadata.fileType != AE_IFDIR) {
-    std::cerr << "Path is not a directory: " << path << std::endl;
-    return;
-  }
+    if (targetPath.empty() || targetPath[0] != '/') {
+        if (currentDirectory.back() != '/') {
+            targetPath = currentDirectory + "/" + targetPath;
+        } else {
+            targetPath = currentDirectory + targetPath;
+        }
+    }
 
-  currentDirectory = path;
+
+    if (!fileStorage->exists(targetPath)) {
+        std::cerr << "Directory does not exist: " << targetPath << std::endl;
+        return;
+    }
+
+    const Metadata &metadata = fileStorage->getMetadata(targetPath);
+    if (metadata.fileType != AE_IFDIR) {
+        std::cerr << "Path is not a directory: " << targetPath << std::endl;
+        return;
+    }
+
+    currentDirectory = targetPath;
 }
+
+
 
 bool VirtualFilesystem::createFile(const std::string &path, size_t size,
                                    unsigned short fileType) {
