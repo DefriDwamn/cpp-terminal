@@ -17,6 +17,4 @@ add_executable(${PROJECT_NAME}
     src/commands/command.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} LibArchive::LibArchive boost::boost)
-
-#include_directories(include)
+target_link_libraries(${PROJECT_NAME} LibArchive::LibArchive boost::boost QArchive::QArchive)

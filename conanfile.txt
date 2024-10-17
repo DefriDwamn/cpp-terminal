@@ -1,6 +1,7 @@
 [requires]
 boost/1.86.0
 libarchive/3.7.4
+qarchive/2.2.8
 
 [generators]
 CMakeDeps

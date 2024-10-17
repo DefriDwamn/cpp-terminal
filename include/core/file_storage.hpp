@@ -22,5 +22,6 @@ public:
   bool remove(const std::string &path);
   bool exists(const std::string &path) const;
   const Metadata &getMetadata(const std::string &path) const;
+  FileStorage();
 };
 #endif

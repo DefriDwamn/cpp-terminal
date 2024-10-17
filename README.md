@@ -16,7 +16,7 @@ conan profile detect --force
 mkdir build
 conan install . --output-folder=build --build=missing
 cd build
-cmake .. --preset conan-default
+cmake .. --preset conan-release
 cmake --build . --config Release
 ```
 Собранное приложение будет находится в директории build/Release
