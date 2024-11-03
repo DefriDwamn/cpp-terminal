@@ -1,12 +1,15 @@
 #include "core/shell.hpp"
 #include <boost/program_options.hpp>
-#include <fstream>
+#include <QCoreApplication>
 #include <iostream>
+#include <fstream>
 
 std::string getFilesystemPath(const boost::program_options::variables_map &vm);
 
 int main(int argc, char *argv[]) {
+    QCoreApplication app(argc, argv);
     namespace po = boost::program_options;
+
     try {
         po::options_description desc{"Options"};
         desc.add_options()
@@ -40,7 +43,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    return 0;
+    return app.exec();
 }
 
 std::string getFilesystemPath(const boost::program_options::variables_map &vm) {
