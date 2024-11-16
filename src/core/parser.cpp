@@ -1,4 +1,6 @@
 #include "core/parser.hpp"
+#include <iostream>
+#include <sstream>
 
 Parser::Parser(VirtualFilesystem *vfs) {
   commands["cd"] = std::make_unique<ChangeDirectoryCommand>(vfs);

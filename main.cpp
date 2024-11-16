@@ -1,6 +1,6 @@
 #include "core/shell.hpp"
 #include <boost/program_options.hpp>
-#include <QCoreApplication>
+#include <QtCore/QCoreApplication>
 #include <iostream>
 #include <fstream>
 
