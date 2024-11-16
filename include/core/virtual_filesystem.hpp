@@ -2,6 +2,7 @@
 #define VIRTUAL_FILESYSTEM_HPP
 #include "file_storage.hpp"
 #include <boost/filesystem.hpp>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>

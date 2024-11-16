@@ -5,9 +5,21 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
+#include <cstddef>
 #include <iostream>
 #include <memory>
+#include <qarchive_enums.hpp>
+#include <qarchivediskcompressor.hpp>
+#include <qarchivememorycompressor.hpp>
+#include <qarchivememoryextractor.hpp>
+#include <qarchivememoryextractoroutput.hpp>
+#include <qbuffer.h>
+#include <qglobal.h>
+#include <qobject.h>
 #include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 VirtualFilesystem::VirtualFilesystem(const std::string &path)
     : currentDirectory("/"), archivePath(path) {
@@ -17,28 +29,55 @@ VirtualFilesystem::VirtualFilesystem(const std::string &path)
   } else {
     createDefaultArchive("fs.tar");
     loadArchive();
-    addFile("/hello", 0, FileType::REG);
-    addFile("/dir", 0, FileType::DIR);
-    addFile("/dir/file", 0, FileType::REG);
   }
 }
 
 void VirtualFilesystem::createDefaultArchive(
     const std::string &defaultArchiveName) {
   QFile archiveFile(QString::fromStdString(defaultArchiveName));
-
   if (archiveFile.exists()) {
     throw std::runtime_error("Default archive already exists");
   }
+
+  addFile("/hello", 0, FileType::REG);
+  addFile("/dir", 0, FileType::DIR);
+  addFile("/file", 0, FileType::DIR);
+  addFile("/folder", 0, FileType::DIR);
+  addFile("/dir/file", 0, FileType::REG);
 
   QArchive::DiskCompressor compressor(
       QString::fromStdString(defaultArchiveName));
   compressor.setArchiveFormat(QArchive::TarFormat);
 
-  QObject::connect(&compressor, &QArchive::DiskCompressor::finished,
-                   [&]() { archivePath = defaultArchiveName; });
+  for (const auto &file : fileStorage->files) {
+    compressor.addFiles(QString::fromStdString(file.second.path));
+  }
+
+  QEventLoop loop;
+  bool success = false;
+
+  QObject::connect(&compressor, &QArchive::DiskCompressor::finished, [&]() {
+    success = true;
+    loop.quit();
+  });
+
+  QObject::connect(
+      &compressor, &QArchive::DiskCompressor::error, [&](short code) {
+        std::cerr << "Failed to create archive: "
+                  << QArchive::errorCodeToString(code).toStdString()
+                  << std::endl;
+        loop.quit();
+      });
 
   compressor.start();
+  loop.exec();
+
+  if (!success) {
+    throw std::runtime_error("Failed to create archive: " + defaultArchiveName);
+  }
+
+  archivePath = defaultArchiveName;
+  std::cout << "Default archive created: " << archivePath << std::endl;
 }
 
 void VirtualFilesystem::loadArchive() {
@@ -55,7 +94,6 @@ void VirtualFilesystem::loadArchive() {
       &extractor, &QArchive::MemoryExtractor::finished,
       [&](QArchive::MemoryExtractorOutput *output) {
         auto files = output->getFiles();
-        std::cout << "feaw";
         for (const auto &file : files) {
           auto fileInfo = file.fileInformation();
 
@@ -94,28 +132,7 @@ bool VirtualFilesystem::addFile(const std::string &path, size_t size,
     return false;
   }
 
-  QArchive::MemoryCompressor compressor(QArchive::TarFormat);
-  compressor.addFiles(QString::fromStdString(path));
-
-  QObject::connect(&compressor, &QArchive::MemoryCompressor::finished,
-                   [&](QBuffer *buffer) {
-                     QFile archiveFile(QString::fromStdString(archivePath));
-                     if (archiveFile.open(QIODevice::WriteOnly)) {
-                       archiveFile.write(buffer->data());
-                       archiveFile.close();
-                     }
-                     buffer->deleteLater();
-                   });
-
-  QObject::connect(&compressor, &QArchive::MemoryCompressor::error,
-                   [&](short code, QString file) {
-                     qInfo()
-                         << "An error has occured ::"
-                         << QArchive::errorCodeToString(code) << "::" << file;
-                     return;
-                   });
-
-  compressor.start();
+  fileStorage->add(path, size, fileType);
 
   return true;
 }

@@ -2,7 +2,6 @@
 #define COMMAND_HPP
 
 #include <core/virtual_filesystem.hpp>
-#include <iostream>
 #include <string>
 #include <vector>
 

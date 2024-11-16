@@ -1,4 +1,5 @@
 #include "commands/command.hpp"
+#include <iostream>
 
 ChangeDirectoryCommand::ChangeDirectoryCommand(VirtualFilesystem *vfs)
     : vfs(vfs) {}
