@@ -3,18 +3,18 @@ project(cpp-terminal CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(LibArchive REQUIRED)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 find_package(Boost REQUIRED program_options)
+find_package(QArchive)
 
-include_directories("include")
+include_directories("include" ${Boost_INCLUDE_DIRS})
 
-add_executable(${PROJECT_NAME}
-    main.cpp
-    src/core/shell.cpp
-    src/core/virtual_filesystem.cpp
-    src/core/file_storage.cpp
-    src/core/parser.cpp
-    src/commands/command.cpp
-)
+file(GLOB_RECURSE SOURCES "src/*.cpp" "main.cpp" "include/*.hpp")
 
-target_link_libraries(${PROJECT_NAME} LibArchive::LibArchive boost::boost QArchive::QArchive)
+add_executable(cpp-terminal ${SOURCES})
+
+
+target_link_libraries(${PROJECT_NAME} boost::boost QArchive)
