@@ -1,7 +1,0 @@
-[requires]
-boost/1.86.0
-qarchive/2.2.8
-
-[generators]
-CMakeDeps
-CMakeToolchain
