@@ -53,7 +53,7 @@ void GUIShell::on_execute() {
     std::string result = parser->processCommand(command);
 
     output_box.append("> " + prompt + command + "\n" + result +
-                          (result == "" ? "" : "\n"),
+                          (result.empty() || result.back() == '\n' ? "" : "\n"),
                       true);
   } catch (const std::exception &e) {
     nana::msgbox msg(fm, "Error");
