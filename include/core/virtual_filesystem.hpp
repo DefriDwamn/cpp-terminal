@@ -1,5 +1,4 @@
-#ifndef VIRTUAL_FILESYSTEM_HPP
-#define VIRTUAL_FILESYSTEM_HPP
+#pragma once
 #include "file_storage.hpp"
 #include <boost/filesystem.hpp>
 #include <cstddef>
@@ -9,18 +8,26 @@
 
 class VirtualFilesystem {
 public:
-  VirtualFilesystem(const std::string &path);
-  std::vector<std::string> listDirectory(const std::string &path);
-  void changeDirectory(const std::string &path);
-  bool addFile(const std::string &path, size_t size, FileType fileType);
+  VirtualFilesystem(const std::string &path = "");
+
+  std::vector<std::string> listDirectory(const std::string &path,
+                                         std::string &errorMessage);
+  bool changeDirectory(const std::string &path);
   std::string getCurrentDirectory();
+  std::string normalizePath(const std::string &path, bool &isDirectory);
+
+  bool existsInStorage(const std::string &path) const;
+  const Metadata &getMetadataFromStorage(const std::string &path) const;
+  bool addFile(const std::string &path, size_t size, FileType fileType);
+  bool addFileToArchiveAndStorage(const std::string &path, size_t size,
+                                  FileType fileType);
 
 private:
   std::string archivePath;
   std::string currentDirectory;
   std::unique_ptr<FileStorage> fileStorage;
   void loadArchive();
-  void createDefaultArchive(const std::string &defaultArchiveName);
+  void createDefaultArchive();
+  void addFileToArchive(struct archive *archive, const std::string &path,
+                        size_t size, FileType fileType);
 };
-
-#endif

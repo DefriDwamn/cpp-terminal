@@ -1,5 +1,4 @@
-#ifndef PARSER_HPP
-#define PARSER_HPP
+#pragma once
 #include "commands/command.hpp"
 #include "virtual_filesystem.hpp"
 #include <map>
@@ -8,11 +7,8 @@
 
 class Parser {
 public:
-  Parser(VirtualFilesystem *vfs);
-  void processCommand(const std::string &input);
-
+  explicit Parser(std::shared_ptr<VirtualFilesystem> vfs);
+  std::string processCommand(const std::string &input);
 private:
-  std::map<std::string, std::unique_ptr<Command>> commands;
+  std::unordered_map<std::string, std::unique_ptr<Command>> commands;
 };
-
-#endif

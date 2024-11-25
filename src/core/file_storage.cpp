@@ -4,11 +4,23 @@
 FileStorage::FileStorage() { add("/", 0, FileType::DIR); }
 
 void FileStorage::add(const std::string &path, size_t size, FileType fileType) {
-  if (files.find(path) != files.end()) {
-    std::cerr << "File or directory already exists: " << path << std::endl;
+  if (path.empty()) {
+    std::cerr << "Error: Path cannot be empty.\n";
     return;
   }
-  files[path] = Metadata(path, size, fileType);
+
+  std::string adjustedPath = path;
+  if (fileType == FileType::DIR && path.back() == '/' && path.size() != 1) {
+    adjustedPath.pop_back();
+  }
+
+  if (files.find(adjustedPath) != files.end()) {
+    std::cerr << "Error: File or directory already exists: " + adjustedPath
+              << '\n';
+    return;
+  }
+
+  files[adjustedPath] = Metadata(adjustedPath, size, fileType);
 }
 
 bool FileStorage::remove(const std::string &path) {

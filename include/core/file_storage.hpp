@@ -1,5 +1,4 @@
-#ifndef FILE_STORAGE_HPP
-#define FILE_STORAGE_HPP
+#pragma once
 #include <string>
 #include <unordered_map>
 
@@ -24,4 +23,3 @@ public:
   const Metadata &getMetadata(const std::string &path) const;
   FileStorage();
 };
-#endif

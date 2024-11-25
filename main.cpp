@@ -1,21 +1,15 @@
-#include "core/shell.hpp"
-#include <QtCore/QCoreApplication>
+#include "core/gui_shell.hpp"
+#include "core/parser.hpp"
+#include "core/virtual_filesystem.hpp"
 #include <boost/program_options.hpp>
-#include <boost/program_options/detail/parsers.hpp>
-#include <boost/program_options/options_description.hpp>
-#include <boost/program_options/value_semantic.hpp>
-#include <boost/program_options/variables_map.hpp>
-#include <exception>
 #include <fstream>
 #include <iostream>
-#include <qcoreapplication.h>
 #include <stdexcept>
 #include <string>
 
 std::string getFilesystemPath(const boost::program_options::variables_map &vm);
 
 int main(int argc, char *argv[]) {
-  QCoreApplication app(argc, argv);
   namespace po = boost::program_options;
 
   try {
@@ -36,17 +30,18 @@ int main(int argc, char *argv[]) {
     po::notify(vm);
 
     if (vm.count("create")) {
-      Shell shell;
+      auto vfs = std::make_shared<VirtualFilesystem>();
+      GUIShell shell(vfs);
       shell.run();
     } else if (vm.count("fs")) {
       std::string fsPath = getFilesystemPath(vm);
-      Shell shell(fsPath);
+      auto vfs = std::make_shared<VirtualFilesystem>(fsPath);
+      GUIShell shell(vfs);
       shell.run();
     } else {
       throw std::runtime_error(
           "Either --create or --fs option must be specified.");
     }
-
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;
     return 1;
