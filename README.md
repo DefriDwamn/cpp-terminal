@@ -20,6 +20,23 @@ tar.
 - [CMake](https://cmake.org/download/)
 - [Bear](https://github.com/rizsotto/Bear)
 
+Убедитесь, что профиль conan использует clang(libstdc++11 и указать buildenv СXX и LD) или же msvc(для сборки под win)
+Пример для clang(под linux):
+```yml
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.cppstd=gnu17
+compiler.libcxx=libstdc++11
+compiler.version=19
+os=Linux
+[buildenv]
+CC=/usr/bin/clang
+CXX=/usr/bin/clang++
+LD=/usr/bin/lld
+```
+
 Далее в терминале для сборки:
 ```bash
 conan profile detect --force
