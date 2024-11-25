@@ -8,8 +8,8 @@ tar.
 
 ## Описание всех функций и настроек
 Поддержка команд ls, cd и exit, а также:
-1. cp.
-2. find.
+1. cp
+2. find
 3. tree
 ## Cборка проекта
 
@@ -26,8 +26,9 @@ conan profile detect --force
 mkdir build
 conan install . --output-folder=build --build=missing
 cd build
-cmake .. --preset conan-release
-bear -- cmake --build . --config Release
+cmake .. --preset conan-release 
+# или cmake .. --preset conan-default 
+cmake --build . --config Release
 ```
 Собранное приложение будет находится в директории build/Release
 ## Примеры использования
