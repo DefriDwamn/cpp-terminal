@@ -32,6 +32,7 @@ void GUIShell::run() {
 
 void GUIShell::on_execute() {
   const auto command = input_box.text();
+  input_box.caption("");
   if (command.empty()) {
     nana::msgbox msg(fm, "Error");
     msg.icon(nana::msgbox::icon_warning) << "Command cannot be empty.";
@@ -44,8 +45,8 @@ void GUIShell::on_execute() {
   }
   if (command == "clear") {
     output_box.caption("");
+    return;
   }
-
   try {
     std::string currentDir = vfs->getCurrentDirectory();
     std::string prompt = currentDir + " $ ";
@@ -60,5 +61,4 @@ void GUIShell::on_execute() {
     msg.icon(nana::msgbox::icon_error) << e.what();
     msg.show();
   }
-  input_box.caption("");
 }
