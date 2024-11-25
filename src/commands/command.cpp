@@ -109,7 +109,8 @@ std::string CpCommand::copyDirectory(const std::string &source,
     std::string destPath = destination + "/" + file;
     const Metadata &metadata = vfs->getMetadataFromStorage(srcPath);
     if (metadata.fileType == FileType::REG) {
-      if (!vfs->addFileToArchiveAndStorage(destPath, metadata.size, FileType::REG)) {
+      if (!vfs->addFileToArchiveAndStorage(destPath, metadata.size,
+                                           FileType::REG)) {
         return "cp: failed to copy file: " + file;
       }
     } else if (metadata.fileType == FileType::DIR) {
@@ -177,12 +178,14 @@ std::string FindCommand::findFiles(const std::string &path,
   std::vector<std::string> files =
       vfs->listDirectory(normalizedPath, errorMessage);
   for (const std::string &file : files) {
-    std::string fullPath = normalizedPath + "/" + file;
-
+    std::string fullPath = normalizedPath;
+    if (fullPath.back() != '/') {
+      fullPath += "/";
+    }
+    fullPath += file;
     if (file.find(searchTerm) != std::string::npos) {
       output += fullPath + "\n";
     }
-
     output += findFiles(fullPath, searchTerm);
   }
   return output;
