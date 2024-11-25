@@ -42,6 +42,9 @@ void GUIShell::on_execute() {
     fm.close();
     return;
   }
+  if (command == "clear") {
+    output_box.caption("");
+  }
 
   try {
     std::string currentDir = vfs->getCurrentDirectory();
