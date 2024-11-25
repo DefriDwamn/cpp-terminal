@@ -14,11 +14,9 @@ tar.
 ## Cборка проекта
 
 Необходимые зависимости для разработки:
-- clang++
-- clangd
+- clang++ (Linux) или MSVC (Windows)
 - [Conan](https://conan.io/downloads)
 - [CMake](https://cmake.org/download/)
-- [Bear](https://github.com/rizsotto/Bear)
 
 Убедитесь, что профиль conan использует clang(libstdc++11 и указать buildenv СXX и LD) или же msvc(для сборки под win)
 Пример для clang(под linux):
