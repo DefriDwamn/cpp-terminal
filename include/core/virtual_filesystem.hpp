@@ -9,6 +9,7 @@
 class VirtualFilesystem {
 public:
   VirtualFilesystem(const std::string &path = "");
+  ~VirtualFilesystem();
 
   std::vector<std::string> listDirectory(const std::string &path,
                                          std::string &errorMessage);
@@ -18,16 +19,19 @@ public:
 
   bool existsInStorage(const std::string &path) const;
   const Metadata &getMetadataFromStorage(const std::string &path) const;
-  bool addFile(const std::string &path, size_t size, FileType fileType);
+  bool addFileToStorage(const std::string &path, size_t size,
+                        FileType fileType);
   bool addFileToArchiveAndStorage(const std::string &path, size_t size,
                                   FileType fileType);
 
 private:
   std::string archivePath;
   std::string currentDirectory;
+  struct archive *archive;
   std::unique_ptr<FileStorage> fileStorage;
+
   void loadArchive();
   void createDefaultArchive();
-  void addFileToArchive(struct archive *archive, const std::string &path,
-                        size_t size, FileType fileType);
+  void addFileToArchive(const std::string &path, size_t size,
+                        FileType fileType);
 };

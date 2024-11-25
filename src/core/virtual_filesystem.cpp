@@ -10,6 +10,10 @@
 VirtualFilesystem::VirtualFilesystem(const std::string &path)
     : currentDirectory("/"), archivePath(path) {
   fileStorage = std::make_unique<FileStorage>();
+  archive = archive_write_new();
+  if (archive == nullptr)
+    throw std::runtime_error("Failed to create archive");
+
   if (!archivePath.empty()) {
     loadArchive();
   } else {
@@ -18,85 +22,116 @@ VirtualFilesystem::VirtualFilesystem(const std::string &path)
   }
 }
 
+VirtualFilesystem::~VirtualFilesystem() {
+  if (archive != nullptr) {
+    archive_write_close(archive);
+    archive_write_free(archive);
+  }
+}
+
 void VirtualFilesystem::createDefaultArchive() {
   if (std::filesystem::exists(archivePath)) {
     throw std::runtime_error("Archive already exists: " + archivePath);
   }
 
-  struct archive *archive = archive_write_new();
-  if (archive == nullptr) {
-    throw std::runtime_error("Failed to create archive");
-  }
-
   if (archive_write_set_format_pax_restricted(archive) != ARCHIVE_OK) {
     archive_write_free(archive);
-    throw std::runtime_error("Failed to set archive format: " +
-                             std::string(archive_error_string(archive)));
+    throw std::runtime_error("Failed to set archive format");
   }
-
   if (archive_write_open_filename(archive, archivePath.c_str()) != ARCHIVE_OK) {
-    archive_write_free(archive);
-    throw std::runtime_error("Failed to open archive: " +
-                             std::string(archive_error_string(archive)));
+    throw std::runtime_error("Failed to open archive for writing");
   }
 
-  addFileToArchive(archive, "/hello", std::strlen("Hello, world!"),
-                   FileType::REG);
-  addFile("/hello", std::strlen("Hello, world!"), FileType::REG);
-
-  addFileToArchive(archive, "/dir", 0, FileType::DIR);
-  addFile("/dir", 0, FileType::DIR);
-
-  addFileToArchive(archive, "/dir/dir2", 0, FileType::DIR);
-  addFile("/dir/dir2", 0, FileType::DIR);
-
-  addFileToArchive(archive, "/dir/file", 0, FileType::REG);
-  addFile("/dir/file", 0, FileType::REG);
-
-  if (archive_write_close(archive) != ARCHIVE_OK) {
-    archive_write_free(archive);
-    throw std::runtime_error("Failed to close archive: " +
-                             std::string(archive_error_string(archive)));
-  }
-
-  archive_write_free(archive);
+  addFileToArchiveAndStorage("/hello", std::strlen("Hello, world!"),
+                             FileType::REG);
+  addFileToArchiveAndStorage("/dir", 0, FileType::DIR);
+  addFileToArchiveAndStorage("/dir/dir2", 0, FileType::DIR);
+  addFileToArchiveAndStorage("/dir/file", 0, FileType::REG);
 }
 
 void VirtualFilesystem::loadArchive() {
-  struct archive *archive = archive_read_new();
-  if (archive == nullptr) {
+  std::string tempPath = archivePath + ".temp";
+  struct archive *tempArchive = archive_write_new();
+  if (archive_write_set_format_pax_restricted(tempArchive) != ARCHIVE_OK) {
+    throw std::runtime_error("Failed to set format for temp archive");
+  }
+  if (archive_write_open_filename(tempArchive, tempPath.c_str()) !=
+      ARCHIVE_OK) {
+    archive_write_free(tempArchive);
+    throw std::runtime_error("Failed to open temp archive for writing");
+  }
+
+  struct archive *archiveReader = archive_read_new();
+  if (archiveReader == nullptr) {
+    archive_write_free(tempArchive);
     throw std::runtime_error("Failed to create archive reader");
   }
-
-  if (archive_read_support_format_tar(archive) != ARCHIVE_OK) {
-    archive_read_free(archive);
-    throw std::runtime_error("Failed to set archive format: " +
-                             std::string(archive_error_string(archive)));
+  if (archive_read_support_format_tar(archiveReader) != ARCHIVE_OK) {
+    archive_write_free(tempArchive);
+    archive_read_free(archiveReader);
+    throw std::runtime_error("Failed to set archive format for reading");
   }
-
-  if (archive_read_open_filename(archive, archivePath.c_str(), 10240) !=
+  if (archive_read_open_filename(archiveReader, archivePath.c_str(), 10240) !=
       ARCHIVE_OK) {
-    archive_read_free(archive);
-    throw std::runtime_error("Failed to open archive: " +
-                             std::string(archive_error_string(archive)));
+    archive_write_free(tempArchive);
+    archive_read_free(archiveReader);
+    throw std::runtime_error("Failed to open archive for reading");
   }
 
   struct archive_entry *entry;
-  while (archive_read_next_header(archive, &entry) == ARCHIVE_OK) {
+  while (archive_read_next_header(archiveReader, &entry) == ARCHIVE_OK) {
     const char *path = archive_entry_pathname(entry);
     size_t size = archive_entry_size(entry);
     int type = archive_entry_filetype(entry);
-    addFile(path, size, (type == AE_IFDIR) ? FileType::DIR : FileType::REG);
+    FileType fileType = (type == AE_IFDIR) ? FileType::DIR : FileType::REG;
+
+    addFileToStorage(path, size, fileType);
+
+    archive_write_header(tempArchive, entry);
+    if (fileType == FileType::REG && size > 0) {
+      std::vector<char> buffer(size);
+      archive_read_data(archiveReader, buffer.data(), size);
+      archive_write_data(tempArchive, buffer.data(), size);
+    }
   }
 
-  if (archive_read_free(archive) != ARCHIVE_OK) {
-    throw std::runtime_error("Failed to free archive: " +
-                             std::string(archive_error_string(archive)));
+  archive_read_free(archiveReader);
+  archive_write_close(tempArchive);
+  archive_write_free(tempArchive);
+
+  if (archive_write_set_format_pax_restricted(archive) != ARCHIVE_OK) {
+    throw std::runtime_error("Failed to set archive format");
   }
+  if (archive_write_open_filename(archive, archivePath.c_str()) != ARCHIVE_OK) {
+    throw std::runtime_error("Failed to open archive for writing");
+  }
+
+  struct archive *tempReader = archive_read_new();
+  if (archive_read_support_format_tar(tempReader) != ARCHIVE_OK) {
+    archive_read_free(tempReader);
+    throw std::runtime_error("Failed to set format for temp reading");
+  }
+  if (archive_read_open_filename(tempReader, tempPath.c_str(), 10240) !=
+      ARCHIVE_OK) {
+    archive_read_free(tempReader);
+    throw std::runtime_error("Failed to open temp archive for reading");
+  }
+
+  while (archive_read_next_header(tempReader, &entry) == ARCHIVE_OK) {
+    archive_write_header(archive, entry);
+    size_t size = archive_entry_size(entry);
+    if (archive_entry_filetype(entry) == AE_IFREG && size > 0) {
+      std::vector<char> buffer(size);
+      archive_read_data(tempReader, buffer.data(), size);
+      archive_write_data(archive, buffer.data(), size);
+    }
+  }
+
+  archive_read_free(tempReader);
+  std::filesystem::remove(tempPath);
 }
 
-void VirtualFilesystem::addFileToArchive(struct archive *archive,
-                                         const std::string &path, size_t size,
+void VirtualFilesystem::addFileToArchive(const std::string &path, size_t size,
                                          FileType fileType) {
   struct archive_entry *entry = archive_entry_new();
   if (entry == nullptr) {
@@ -112,8 +147,7 @@ void VirtualFilesystem::addFileToArchive(struct archive *archive,
 
   if (archive_write_header(archive, entry) != ARCHIVE_OK) {
     archive_entry_free(entry);
-    throw std::runtime_error("Failed to write header for " + path + ": " +
-                             std::string(archive_error_string(archive)));
+    throw std::runtime_error("Failed to write header for " + path);
   }
 
   if (fileType == FileType::REG && size > 0) {
@@ -128,116 +162,32 @@ void VirtualFilesystem::addFileToArchive(struct archive *archive,
   archive_entry_free(entry);
 }
 
-bool VirtualFilesystem::addFile(const std::string &path, size_t size,
-                                FileType fileType) {
+bool VirtualFilesystem::addFileToStorage(const std::string &path, size_t size,
+                                         FileType fileType) {
   if (fileStorage->exists(path)) {
     std::cerr << "File or directory already exists: " << path << std::endl;
     return false;
   }
 
   fileStorage->add(path, size, fileType);
-
   return true;
 }
 
 bool VirtualFilesystem::addFileToArchiveAndStorage(const std::string &path,
-                                                    size_t size,
-                                                    FileType fileType) {
-    if (fileStorage->exists(path)) {
-        std::cerr << "File or directory already exists in storage: " << path << std::endl;
-        return false;
-    }
+                                                   size_t size,
+                                                   FileType fileType) {
+  if (!addFileToStorage(path, size, fileType)) {
+    return false;
+  }
 
-    fileStorage->add(path, size, fileType);
+  try {
+    addFileToArchive(path, size, fileType);
+  } catch (const std::exception &e) {
+    std::cerr << "Error adding file to archive: " << e.what() << std::endl;
+    return false;
+  }
 
-    struct archive *archive = archive_read_new();
-    if (archive == nullptr) {
-        std::cerr << "Failed to create archive object" << std::endl;
-        return false;
-    }
-
-    if (archive_read_support_format_tar(archive) != ARCHIVE_OK) {
-        archive_read_free(archive);
-        std::cerr << "Failed to set archive format" << std::endl;
-        return false;
-    }
-
-    if (archive_read_open_filename(archive, archivePath.c_str(), 10240) != ARCHIVE_OK) {
-        archive_read_free(archive);
-        std::cerr << "Failed to open archive for reading" << std::endl;
-        return false;
-    }
-
-    std::vector<struct archive_entry*> entries;
-    struct archive_entry *entry;
-    while (archive_read_next_header(archive, &entry) == ARCHIVE_OK) {
-        struct archive_entry *entry_copy = archive_entry_clone(entry);
-        if (entry_copy == nullptr) {
-            std::cerr << "Failed to create archive entry copy" << std::endl;
-            archive_read_free(archive);
-            return false;
-        }
-        entries.push_back(entry_copy);
-    }
-
-    if (archive_read_free(archive) != ARCHIVE_OK) {
-        std::cerr << "Failed to free archive" << std::endl;
-        return false;
-    }
-
-    struct archive *archive_write = archive_write_new();
-    if (archive_write == nullptr) {
-        std::cerr << "Failed to create archive write object" << std::endl;
-        return false;
-    }
-
-    if (archive_write_set_format_pax_restricted(archive_write) != ARCHIVE_OK) {
-        archive_write_free(archive_write);
-        std::cerr << "Failed to set archive format for writing" << std::endl;
-        return false;
-    }
-
-    if (archive_write_open_filename(archive_write, archivePath.c_str()) != ARCHIVE_OK) {
-        archive_write_free(archive_write);
-        std::cerr << "Failed to open archive for writing" << std::endl;
-        return false;
-    }
-
-    for (auto &entry_copy : entries) {
-        if (archive_write_header(archive_write, entry_copy) != ARCHIVE_OK) {
-            archive_entry_free(entry_copy);
-            archive_write_free(archive_write);
-            std::cerr << "Failed to write entry header to archive" << std::endl;
-            return false;
-        }
-
-        if (archive_entry_filetype(entry_copy) == AE_IFREG) {
-            const char *content = "Hello, world!";
-            long content_size = std::strlen(content); 
-            std::cout << "Writing " << content_size << " bytes of data to archive..." << std::endl;
-            long written = archive_write_data(archive_write, content, content_size);
-
-            if (written != content_size) {
-                std::cerr << "Failed to write data to archive. Written: " << written << " bytes, Expected: " << content_size << " bytes." << std::endl;
-                archive_entry_free(entry_copy);
-                archive_write_free(archive_write);
-                return false;
-            }
-        }
-
-        archive_entry_free(entry_copy);
-    }
-
-    addFileToArchive(archive_write, path, size, fileType);
-
-    if (archive_write_close(archive_write) != ARCHIVE_OK) {
-        archive_write_free(archive_write);
-        std::cerr << "Failed to close the archive after writing" << std::endl;
-        return false;
-    }
-
-    archive_write_free(archive_write);
-    return true;
+  return true;
 }
 
 std::string VirtualFilesystem::getCurrentDirectory() {
