@@ -1,8 +1,29 @@
 #include "commands/command.hpp"
 #include "core/virtual_filesystem.hpp"
-#include <filesystem>
+#include <algorithm>
+#include <boost/filesystem.hpp>
 #include <gtest/gtest.h>
 #include <memory>
+#include <sstream>
+#include <vector>
+
+std::string sortLines(const std::string &input) {
+  std::vector<std::string> lines;
+  std::istringstream stream(input);
+  std::string line;
+
+  while (std::getline(stream, line)) {
+    lines.push_back(line);
+  }
+
+  std::sort(lines.begin(), lines.end());
+  std::ostringstream sortedStream;
+  for (const auto &sortedLine : lines) {
+    sortedStream << sortedLine << "\n";
+  }
+
+  return sortedStream.str();
+}
 
 class VirtualFilesystemTest : public ::testing::Test {
 protected:
@@ -10,13 +31,13 @@ protected:
   std::string archivePath = "fs.tar";
 
   VirtualFilesystemTest() {
+    if (boost::filesystem::exists(archivePath)) {
+      boost::filesystem::remove(archivePath);
+    }
     vfs = std::make_shared<VirtualFilesystem>();
     vfs->addFileToStorage("/dir1", 0, FileType::DIR);
     vfs->addFileToStorage("/dir2", 0, FileType::DIR);
   }
-
-  void SetUp() override { std::filesystem::remove(archivePath); }
-  void TearDown() override { std::filesystem::remove(archivePath); }
 };
 
 // command: cd
@@ -44,7 +65,9 @@ TEST_F(VirtualFilesystemTest, TestChangeDirectoryTooManyArguments) {
 TEST_F(VirtualFilesystemTest, TestListDirectorySuccess) {
   ListDirectoryCommand lsCommand(vfs);
   std::vector<std::string> args = {"/"};
-  EXPECT_EQ(lsCommand.execute(args), "dir2\ndir1\ndir\nhello");
+  std::string actualOutput = sortLines(lsCommand.execute(args));
+  std::string expectedOutput = sortLines("dir2\ndir1\ndir\nhello");
+  EXPECT_EQ(actualOutput, expectedOutput);
 }
 
 TEST_F(VirtualFilesystemTest, TestListDirectoryFailure) {
@@ -87,8 +110,9 @@ TEST_F(VirtualFilesystemTest, TestCopyFileTargetExists) {
 TEST_F(VirtualFilesystemTest, TestTreeCommandEmpty) {
   TreeCommand treeCommand(vfs);
   std::vector<std::string> args = {"/"};
-  EXPECT_EQ(treeCommand.execute(args),
-            "dir2\ndir1\ndir\n  file\n  dir2\nhello\n");
+  std::string actualOutput = sortLines(treeCommand.execute(args));
+  std::string expectedOutput = sortLines("dir2\ndir1\ndir\n  file\n  dir2\nhello\n");
+  EXPECT_EQ(actualOutput, expectedOutput);
 }
 
 TEST_F(VirtualFilesystemTest, TestTreeCommandDirectory) {

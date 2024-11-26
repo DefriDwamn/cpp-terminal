@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.30)
 project(cpp-terminal CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
@@ -19,7 +19,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
-find_package(Boost REQUIRED program_options)
+find_package(Boost REQUIRED program_options filesystem system)
 find_package(LibArchive REQUIRED)
 
 include_directories("include" ${Boost_INCLUDE_DIRS})
@@ -28,7 +28,7 @@ file(GLOB_RECURSE SOURCES "src/*.cpp" "main.cpp" "include/*.hpp")
 
 add_executable(cpp-terminal ${SOURCES})
 
-target_link_libraries(cpp-terminal PRIVATE nana Boost::program_options LibArchive::LibArchive)
+target_link_libraries(cpp-terminal PRIVATE nana Boost::program_options Boost::filesystem Boost::system LibArchive::LibArchive)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

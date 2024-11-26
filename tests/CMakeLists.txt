@@ -2,7 +2,7 @@ project(tests)
 
 add_executable(${PROJECT_NAME} VirtualFilesystemTest.cpp)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE gtest gtest_main LibArchive::LibArchive)
+target_link_libraries(${PROJECT_NAME} PRIVATE gtest gtest_main LibArchive::LibArchive Boost::filesystem Boost::system)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
